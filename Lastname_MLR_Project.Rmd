@@ -1,0 +1,182 @@
+---
+title: 'Stat 297: Multiple Linear Regression project'
+author: "Miza Syafiqah Mohamad Shanudin"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+## Collaboration rules:  
+
+You may consult with up to two classmates for help with this project, but use your own data.  Please identify who you collaborate with here.
+
+## Project premise
+
+In this project you will continue using the car data from the simple linear regression project.  Remind me what kind of car you chose and what zip code you used: 
+
+**Response**: The car I choose is Cherokee Jeep from 60176 Chicago
+
+
+Make sure you have a dataset with variables *year*, *price* (in $1,000's), *mileage* (in 1,000's), and *age*.  The front-matter below to is copied exactly from your last project to help you load your data into the workspace and create the variable *age*.  Feel free to change it if you are sourcing and modifying your data in some different way.
+
+**NOTE** I have not included all the R-chunks needed in this poject, and you'll have to add your own where you need them.  You can type out the \```{r} and \``` at the beginning and end of each chunk, or you can use a keyboard shortcut (Ctrl + Alt + i for Windows).
+
+```{r, echo = F}
+# clean-up R environment
+rm(list = ls())  
+
+# Load Packages 
+library(mosaic)
+library(ggformula)
+library(tidyverse)
+library(Stat2Data)
+library(car)
+library(leaps)
+library(HH)
+library(olsrr)
+
+# source data
+used_cars_path <- file.choose()  # tell R where your data is located
+used_cars      <- read.csv(used_cars_path,header=T) # load the data and name it 'used_cars'
+
+#add a variable that is named 'age', which is 2020 - year
+used_cars$age <- 2020 - used_cars$year
+```
+
+# Model #1: Use *Age* and *Mileage* as Predictors
+
+ 1. Fit a model with two predictors (*age* and *mileage*) for *price* as the response variable and provide the output (both the model summary and the sequential ANOVA table).
+
+price = beta0 + beta1(age) + beta2 (mileage) + epsilon
+fitted model: price-hat = 24.4372 - 1.1229(age) - 0.0504(mileage)
+```{r}
+usedcar <- lm(price ~ age + mileage, data = used_cars)
+summary(usedcar)
+anova(usedcar)
+
+``` 
+ 
+ 2. Find the residual for the very first car in your sample.  Show the actual computation for this part, based on your prediction equation and the data for that car.
+
+**Response**:
+22.338 - 21.06556 = 1.27244
+
+```{r}
+used_cars
+predict.lm(usedcar, newdata = data.frame(mileage = 22.338, age = 2))
+
+```
+ 2. Assess the importance of each of the predictors in the model.  Make sure you indicate which values from the model output you use to make this assessment, and put any conclusions you make in context. Include the hypotheses you are testing.
+
+**Response**: 
+
+        Hnull: Beta1 = 0
+        Ha: Beta1 != 0
+        The p-value for age is 0.00149 which is less than 0.05. This means that Hnull is rejected. Age provide predictive value even after accounting for mileage.
+        
+        Hnull: Beta2 = 0
+        Ha: Beta2 != 0
+        The p-value for mileage is 0.07931 which is more than 0.05. This means that Hnull is not rejected. Mileage does not provide predictive value even after accounting for age.
+
+```{r}
+summary(usedcar)
+```
+ 
+ 3. Use a formal test to assess the overall effectiveness of this model.  What are proper null and alternative hypotheses to test?  Make sure you include the specific values from the output that you are using to reach a conclusion, and explain your conclusion in context.
+
+**Response**:
+ Hnull: beta1 = beta2 =0
+ Ha: at least one betai != 0
+ Using F-distribution produces a p-value of 4.473e-08 for the f-statistic of 24.78. This give strong evidence to reject the null hypothesis which means at least one predictors, age or mileage is significant.
+ 
+```{r}
+summary(usedcar)
+ anova(usedcar)
+```
+ 
+ 4.  Compute and interpret the variance inflation factor (VIF) for your predictors.  Are you very concerned about multicollinearity?
+
+**Response**: the vif for age and mileage is the same and they are both less than 5 hence i am not very concerned with multicollinearity.
+
+```{r}
+vif(usedcar)
+```
+ 
+# Model #2: Polynomial model using age
+
+ If you recall, in your last project you discovered the 'free car phenomenon'.  This occurs when the regression line predicts a price of 0 or below as the line decreases for older cars.  In this section you will fit a polynomial model to perhaps avoid the 'free car'.
+
+**Response**:
+ 
+ 1. Fit a quadratic model using *age* to predict *price*.  Write the prediction equation below, and show a scatterplot of the data with the quadratic curve drawn on it.  
+
+**Response**: price = beta0 + beta1(age) + beta2(age^2) + epsilon
+price-hat = 21.3454 + 1.0187(age) - 0.3981(age^2)
+ 
+```{r}
+used_cars$age2 <- used_cars$age^2
+usedcars <- lm(price~age + age2, data = used_cars)
+summary(usedcars)
+plot(price ~ age, data = used_cars); curve(21.3454 + 1.0187*x - 0.3981*x^2, add = T)
+```
+
+2. You are looking at a 5 year-old car of your model and want to find an interval that is likely to contain its price using your quadratic model.  Interpret your interval in context.
+
+**Response**: 
+interval: (10.7834,221884)
+
+interpretation: considering the population of all jeep cherokee is chicago, I am 95% confident that the price of individual car of age 5 is between $107834 and $221884
+```{r}
+predict.lm(usedcars, newdata=data.frame(age=5,age2=25), interval="prediction")
+```
+
+3. Does the quadratic model allow for some *age* where a car has a zero or negative predicted price?  Explain how you decided whether your answer was yes or no.
+
+**Response**: yes because the graph is a negative quadratic so the graph can intercept at y-axis and also have negative value
+
+4. What happens in the quadratic model for cars that are very old?  Can you think of a plausible real-world explanation, or is this a flaw in the quadratic model?
+
+**Response**: the value of price will be negative.This can mean that the car does not have a worth and has accumulated depreciation that is more than the original price. So, the price is negative.
+
+5. Would the fit improve significantly if you also included a cubic term?  Justify your answer.
+
+**Response**: Yes because all the terms are significant
+
+```{r}
+used_cars$age3 <- used_cars$age^3
+usedcars2 <- lm(price~age+age2+age3, data=used_cars)
+summary(usedcars)
+summary(usedcars2)
+
+```
+
+# Model #3: Complete second-order model
+
+
+1. Write down the complete second order model for predicting a used car price based on age and mileage.  Because you are writing down the model, not the fitted model, your answer should be in terms of betas (you can just write beta1, beta2, etc) and not actual values.
+
+**Response**: price =  beta0 +beta1(age)+beta2(mileage)+beta3(age^2)+beta4(mileage^2)+beta5(age*mileage) + epsilon
+
+2. Use R to estimate the coefficients for the model you described in part 1.  Include the summary and anova tables generated by the corresponding functions in R.
+
+**Response**:
+price-hat= 21.2943 +0.9773(age)+0.0071(mileage)-0.1812(age^2)+0.0004(mileage^2)-0.0273(age*mileage)
+
+```{r}
+used_cars$mileage2 <- used_cars$mileage^2
+usedcarscomplete <- lm(price~age+mileage+age2+mileage2+(age*mileage), data=used_cars)
+summary(usedcarscomplete)
+anova(usedcarscomplete)
+
+```
+
+# Wrap-up
+
+Based on the various model you have considered for predicting the price of a used car, which model would you actually recommend using in practice?  Give some justification for your answer, and produce residual plots for this model.  Comment on what you observe in the residual plots.
+
+**Response**: the second model: price-hat = 21.3454 + 1.0187(age) - 0.3981(age^2)
+because it has higher r-squared value compared to the first model and the final model has non of the predictor significant.
+```{r}
+mplot(usedcars, which = 1)
+```
+from the residual plot, it seems like the condition of linearity is not met because there is a curve form towards the end of the graph. The curve is significant enough because it seems like the graph is being pulled on more extreme values. The condition equal variance is met because the points are scattered evenly.
